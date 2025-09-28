@@ -8,62 +8,44 @@ import '../features/siswa/screens/siswa_list_screen.dart';
 import '../features/user/screens/user_list_screen.dart';
 import '../features/splash/splash_screen.dart';
 import '../providers/app_provider.dart';
+import '../../core/constants/app_routes.dart';
 
-final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authProvider);
+// lib/presentation/routes/app_router.dart
+class AppRouter {
+  GoRouter get router => _router;
 
-  return GoRouter(
-    initialLocation: '/splash',
-    redirect: (context, state) {
-      final isAuthenticated = authState.isAuthenticated;
-      final isSplash = state.uri.path == '/splash';
-      final isLogin = state.uri.path == '/login';
-
-      if (!isAuthenticated && !isLogin && !isSplash) {
-        return '/login';
-      }
-
-      if (isAuthenticated && (isLogin || isSplash)) {
-        return '/dashboard';
-      }
-
-      return null;
-    },
+  final GoRouter _router = GoRouter(
     routes: [
       GoRoute(
-        path: '/splash',
-        name: 'splash',
+        path: AppRoutes.splash,
+        name: AppRoutes.namedSplash,
         builder: (context, state) => const SplashScreen(),
       ),
       GoRoute(
-        path: '/login',
-        name: 'login',
+        path: AppRoutes.login,
+        name: AppRoutes.namedLogin,
         builder: (context, state) => const LoginScreen(),
       ),
       GoRoute(
-        path: '/dashboard',
-        name: 'dashboard',
+        path: AppRoutes.dashboard,
+        name: AppRoutes.namedDashboard,
         builder: (context, state) => const DashboardScreen(),
       ),
       GoRoute(
-        path: '/attendance',
-        name: 'attendance',
+        path: AppRoutes.attendance,
+        name: AppRoutes.namedAttendance,
         builder: (context, state) => const AttendanceListScreen(),
       ),
       GoRoute(
-        path: '/siswa',
-        name: 'siswa',
+        path: AppRoutes.siswa,
+        name: AppRoutes.namedSiswa,
         builder: (context, state) => const SiswaListScreen(),
       ),
       GoRoute(
-        path: '/users',
-        name: 'users',
+        path: AppRoutes.users,
+        name: AppRoutes.namedUsers,
         builder: (context, state) => const UserListScreen(),
       ),
     ],
   );
-});
-
-class AppRouter {
-  Provider<GoRouter> get router => routerProvider;
 }

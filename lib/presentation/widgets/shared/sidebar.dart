@@ -6,12 +6,10 @@ import '../../providers/app_provider.dart';
 
 class Sidebar extends ConsumerWidget {
   final bool isCollapsed;
-  final VoidCallback onToggle;
 
   const Sidebar({
     super.key,
     required this.isCollapsed,
-    required this.onToggle,
   });
 
   @override
@@ -20,14 +18,14 @@ class Sidebar extends ConsumerWidget {
 
     return Column(
       children: [
-        // Logo & App Name
+        // Logo & App Name - TANPA HAMBURGER MENU
         Container(
           height: 70,
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
+              const FlutterLogo(size: 32),
               if (!isCollapsed) ...[
-                const FlutterLogo(size: 32),
                 const SizedBox(width: 12),
                 const Expanded(
                   child: Text(
@@ -38,16 +36,7 @@ class Sidebar extends ConsumerWidget {
                     ),
                   ),
                 ),
-              ] else ...[
-                const FlutterLogo(size: 32),
               ],
-              IconButton(
-                icon: Icon(
-                  isCollapsed ? Icons.menu_open : Icons.menu,
-                  size: 20,
-                ),
-                onPressed: onToggle,
-              ),
             ],
           ),
         ),

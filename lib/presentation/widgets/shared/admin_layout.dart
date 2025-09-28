@@ -27,7 +27,7 @@ class _AdminLayoutState extends ConsumerState<AdminLayout> {
     return Scaffold(
       body: Row(
         children: [
-          // Sidebar
+          // Sidebar - TANPA toggle button di sini
           AnimatedContainer(
             duration: const Duration(milliseconds: 300),
             width: _isSidebarCollapsed ? 70 : 250,
@@ -41,12 +41,8 @@ class _AdminLayoutState extends ConsumerState<AdminLayout> {
               ),
             ),
             child: Sidebar(
-              isCollapsed: _isSidebarCollapsed,
-              onToggle: () {
-                setState(() {
-                  _isSidebarCollapsed = !_isSidebarCollapsed;
-                });
-              },
+              isCollapsed:
+                  _isSidebarCollapsed, // Hanya kirim status, tanpa callback
             ),
           ),
 
@@ -54,7 +50,7 @@ class _AdminLayoutState extends ConsumerState<AdminLayout> {
           Expanded(
             child: Column(
               children: [
-                // Header
+                // Header - HANYA DI SINI ADA HAMBURGER MENU
                 Header(
                   title: widget.title,
                   onMenuToggle: () {
