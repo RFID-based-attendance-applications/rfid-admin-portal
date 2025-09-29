@@ -1,4 +1,3 @@
-// lib/data/models/attendance.dart
 class Attendance {
   final int id;
   final String nis;

@@ -1,11 +1,16 @@
-// lib/presentation/features/siswa/widgets/rfid_modal.dart
+// lib/presentation/widgets/modal/modal-siswa/rfid_modal.dart
 import 'package:flutter/material.dart';
 import '../../../../data/models/siswa.dart';
 
 class RFIDModal extends StatefulWidget {
   final Siswa siswa;
+  final Function(String) onSave;
 
-  const RFIDModal({super.key, required this.siswa});
+  const RFIDModal({
+    super.key,
+    required this.siswa,
+    required this.onSave,
+  });
 
   @override
   State<RFIDModal> createState() => _RFIDModalState();
@@ -34,14 +39,10 @@ class _RFIDModalState extends State<RFIDModal> {
   }
 
   void _saveRFID() {
-    // In real app, save RFID to database
-    Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('RFID berhasil didaftarkan untuk ${widget.siswa.name}'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    if (_scannedRFID != null) {
+      widget.onSave(_scannedRFID!);
+      Navigator.of(context).pop();
+    }
   }
 
   @override

@@ -1,7 +1,7 @@
-// lib/presentation/features/attendance/screens/attendance_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../widgets/shared/admin_layout.dart';
+import '../providers/attendance_provider.dart';
 import '../../../../data/models/attendance.dart';
 
 class AttendanceListScreen extends ConsumerStatefulWidget {
@@ -13,109 +13,109 @@ class AttendanceListScreen extends ConsumerStatefulWidget {
 }
 
 class _AttendanceListScreenState extends ConsumerState<AttendanceListScreen> {
-  final List<Attendance> _attendances = [
-    Attendance(
-      id: 1,
-      nis: '2024001',
-      activity: 'Check-in Pagi',
-      status: 'Hadir',
-      createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-      updatedAt: DateTime.now().subtract(const Duration(hours: 2)),
-    ),
-    Attendance(
-      id: 2,
-      nis: '2024002',
-      activity: 'Check-in Pagi',
-      status: 'Terlambat',
-      createdAt: DateTime.now().subtract(const Duration(hours: 1)),
-      updatedAt: DateTime.now().subtract(const Duration(hours: 1)),
-    ),
-    // Add more sample data...
-  ];
-
-  String _selectedMonth = '${DateTime.now().month}';
-  String _selectedClass = 'Semua Kelas';
-  DateTime _selectedDate = DateTime.now();
-
-  List<String> get _months =>
-      ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
-
-  List<String> get _classes => [
-        'Semua Kelas',
-        'X IPA 1',
-        'X IPA 2',
-        'XI IPA 1',
-        'XI IPA 2',
-        'XII IPA 1',
-        'XII IPA 2',
-      ];
-
-  List<Attendance> get _filteredAttendances {
-    return _attendances.where((attendance) {
-      final matchesMonth = _selectedMonth == '${attendance.createdAt.month}';
-      final matchesClass = _selectedClass == 'Semua Kelas' ||
-          attendance.nis.startsWith(_getClassPrefix(_selectedClass));
-      final matchesDate = attendance.createdAt.year == _selectedDate.year &&
-          attendance.createdAt.month == _selectedDate.month &&
-          attendance.createdAt.day == _selectedDate.day;
-
-      return matchesMonth && matchesClass && matchesDate;
-    }).toList();
+  @override
+  void initState() {
+    super.initState();
+    // Load data saat screen pertama kali dibuka
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(attendanceProvider.notifier).loadAttendance();
+    });
   }
 
-  String _getClassPrefix(String className) {
-    switch (className) {
-      case 'X IPA 1':
-        return '2024';
-      case 'X IPA 2':
-        return '2024';
-      case 'XI IPA 1':
-        return '2023';
-      case 'XI IPA 2':
-        return '2023';
-      case 'XII IPA 1':
-        return '2022';
-      case 'XII IPA 2':
-        return '2022';
-      default:
-        return '';
-    }
-  }
-
-  String _getStatusColor(String status) {
-    switch (status) {
-      case 'Hadir':
-        return 'Green';
-      case 'Terlambat':
-        return 'Orange';
-      case 'Izin':
-        return 'Blue';
-      case 'Sakit':
-        return 'Purple';
-      case 'Alpha':
-        return 'Red';
-      default:
-        return 'Gray';
-    }
+  void _handleFilterChange({
+    String? month,
+    String? kelas,
+    DateTime? date,
+  }) {
+    ref.read(attendanceProvider.notifier).loadAttendance(
+          month: month,
+          kelas: kelas,
+          date: date,
+        );
   }
 
   void _showDatePicker() {
+    final currentState = ref.read(attendanceProvider);
+
     showDatePicker(
       context: context,
-      initialDate: _selectedDate,
+      initialDate: currentState.selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime(2030),
     ).then((date) {
       if (date != null) {
-        setState(() {
-          _selectedDate = date;
-        });
+        _handleFilterChange(date: date);
       }
     });
   }
 
+  void _handleExport() {
+    final notifier = ref.read(attendanceProvider.notifier);
+    final state = ref.read(attendanceProvider);
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Export Data'),
+        content: const Text('Data kehadiran akan diexport ke format Excel.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Batal'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              try {
+                await notifier.exportToExcel(
+                  kelas: state.selectedClass != 'Semua Kelas'
+                      ? state.selectedClass
+                      : null,
+                  startDate: state.selectedDate,
+                  endDate: state.selectedDate,
+                );
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Data berhasil diexport'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Export'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final attendanceState = ref.watch(attendanceProvider);
+    final attendanceNotifier = ref.read(attendanceProvider.notifier);
+
+    final months = List.generate(12, (index) => (index + 1).toString());
+    final classes = [
+      'Semua Kelas',
+      'X IPA 1',
+      'X IPA 2',
+      'XI IPA 1',
+      'XI IPA 2',
+      'XII IPA 1',
+      'XII IPA 2',
+    ];
+
     return AdminLayout(
       title: 'Manajemen Kehadiran',
       child: Padding(
@@ -136,17 +136,17 @@ class _AttendanceListScreenState extends ConsumerState<AttendanceListScreen> {
                           const Text('Bulan'),
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String>(
-                            value: _selectedMonth,
-                            items: _months.map((month) {
+                            value: attendanceState.selectedMonth.isEmpty
+                                ? DateTime.now().month.toString()
+                                : attendanceState.selectedMonth,
+                            items: months.map((month) {
                               return DropdownMenuItem(
                                 value: month,
                                 child: Text('Bulan $month'),
                               );
                             }).toList(),
                             onChanged: (value) {
-                              setState(() {
-                                _selectedMonth = value!;
-                              });
+                              _handleFilterChange(month: value);
                             },
                             decoration: const InputDecoration(
                               border: OutlineInputBorder(),
@@ -167,17 +167,15 @@ class _AttendanceListScreenState extends ConsumerState<AttendanceListScreen> {
                           const Text('Kelas'),
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String>(
-                            value: _selectedClass,
-                            items: _classes.map((classItem) {
+                            value: attendanceState.selectedClass,
+                            items: classes.map((classItem) {
                               return DropdownMenuItem(
                                 value: classItem,
                                 child: Text(classItem),
                               );
                             }).toList(),
                             onChanged: (value) {
-                              setState(() {
-                                _selectedClass = value!;
-                              });
+                              _handleFilterChange(kelas: value);
                             },
                             decoration: const InputDecoration(
                               border: OutlineInputBorder(),
@@ -210,7 +208,7 @@ class _AttendanceListScreenState extends ConsumerState<AttendanceListScreen> {
                               child: Row(
                                 children: [
                                   Text(
-                                    '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                                    '${attendanceState.selectedDate.day}/${attendanceState.selectedDate.month}/${attendanceState.selectedDate.year}',
                                     style: const TextStyle(fontSize: 16),
                                   ),
                                   const Spacer(),
@@ -234,9 +232,9 @@ class _AttendanceListScreenState extends ConsumerState<AttendanceListScreen> {
                           ElevatedButton.icon(
                             icon: const Icon(Icons.download),
                             label: const Text('Export Excel'),
-                            onPressed: () {
-                              // Implement export functionality
-                            },
+                            onPressed: attendanceState.isLoading
+                                ? null
+                                : _handleExport,
                             style: ElevatedButton.styleFrom(
                               minimumSize: const Size.fromHeight(56),
                             ),
@@ -250,26 +248,59 @@ class _AttendanceListScreenState extends ConsumerState<AttendanceListScreen> {
             ),
             const SizedBox(height: 24),
 
+            // Error Handling
+            if (attendanceState.error != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  border: Border.all(color: Colors.red),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error, color: Colors.red),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(attendanceState.error!)),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => attendanceNotifier.clearError(),
+                    ),
+                  ],
+                ),
+              ),
+
             // Statistics
-            const Row(
-              children: [
-                Expanded(
-                    child: _AttendanceStatCard(
-                        title: 'Total', value: '250', color: Colors.blue)),
-                SizedBox(width: 16),
-                Expanded(
-                    child: _AttendanceStatCard(
-                        title: 'Hadir', value: '230', color: Colors.green)),
-                SizedBox(width: 16),
-                Expanded(
-                    child: _AttendanceStatCard(
-                        title: 'Terlambat', value: '15', color: Colors.orange)),
-                SizedBox(width: 16),
-                Expanded(
-                    child: _AttendanceStatCard(
-                        title: 'Tidak Hadir', value: '5', color: Colors.red)),
-              ],
-            ),
+            if (attendanceState.statistics != null)
+              Row(
+                children: [
+                  _AttendanceStatCard(
+                    title: 'Total',
+                    value: attendanceState.statistics!['total'].toString(),
+                    color: Colors.blue,
+                  ),
+                  const SizedBox(width: 16),
+                  _AttendanceStatCard(
+                    title: 'Hadir',
+                    value: attendanceState.statistics!['hadir'].toString(),
+                    color: Colors.green,
+                  ),
+                  const SizedBox(width: 16),
+                  _AttendanceStatCard(
+                    title: 'Terlambat',
+                    value: attendanceState.statistics!['terlambat'].toString(),
+                    color: Colors.orange,
+                  ),
+                  const SizedBox(width: 16),
+                  _AttendanceStatCard(
+                    title: 'Tidak Hadir',
+                    value: attendanceState.statistics!['alpha'].toString(),
+                    color: Colors.red,
+                  ),
+                ],
+              ),
             const SizedBox(height: 24),
 
             // Attendance List
@@ -280,183 +311,25 @@ class _AttendanceListScreenState extends ConsumerState<AttendanceListScreen> {
                   child: Column(
                     children: [
                       Text(
-                        'Data Kehadiran - ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                        'Data Kehadiran - ${attendanceState.selectedDate.day}/${attendanceState.selectedDate.month}/${attendanceState.selectedDate.year}',
                         style: Theme.of(context).textTheme.headlineSmall,
                       ),
                       const SizedBox(height: 16),
-
-                      // Table Header
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 12, horizontal: 16),
-                        decoration: BoxDecoration(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .surfaceVariant
-                              .withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(8),
+                      if (attendanceState.isLoading)
+                        const Expanded(
+                          child: Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        )
+                      else
+                        Expanded(
+                          child: attendanceState.attendanceList.isEmpty
+                              ? const Center(
+                                  child: Text('Tidak ada data kehadiran'))
+                              : _AttendanceTable(
+                                  attendanceList:
+                                      attendanceState.attendanceList),
                         ),
-                        child: const Row(
-                          children: [
-                            Expanded(
-                              flex: 1,
-                              child: Text('NIS',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text('Nama',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                            Expanded(
-                              flex: 1,
-                              child: Text('Kelas',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text('Waktu',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                            Expanded(
-                              flex: 1,
-                              child: Text('Status',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                            Expanded(
-                              flex: 1,
-                              child: Text('Aktivitas',
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Table Body
-                      Expanded(
-                        child: _filteredAttendances.isEmpty
-                            ? const Center(
-                                child: Text('Tidak ada data kehadiran'))
-                            : ListView.builder(
-                                itemCount: _filteredAttendances.length,
-                                itemBuilder: (context, index) {
-                                  final attendance =
-                                      _filteredAttendances[index];
-                                  return Container(
-                                    margin: const EdgeInsets.only(bottom: 8),
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 12, horizontal: 16),
-                                    decoration: BoxDecoration(
-                                      color: index.isEven
-                                          ? Theme.of(context)
-                                              .colorScheme
-                                              .surface
-                                          : Theme.of(context)
-                                              .colorScheme
-                                              .surfaceVariant
-                                              .withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                            flex: 1,
-                                            child: Text(attendance.nis)),
-                                        Expanded(
-                                            flex: 2,
-                                            child: Text(_getStudentName(
-                                                attendance.nis))),
-                                        Expanded(
-                                            flex: 1,
-                                            child: Text(_getStudentClass(
-                                                attendance.nis))),
-                                        Expanded(
-                                          flex: 2,
-                                          child: Text(
-                                            '${attendance.createdAt.hour}:${attendance.createdAt.minute.toString().padLeft(2, '0')}',
-                                          ),
-                                        ),
-                                        Expanded(
-                                          flex: 1,
-                                          child: Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 8, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: _getStatusColor(
-                                                              attendance.status)
-                                                          .toLowerCase() ==
-                                                      'green'
-                                                  ? Colors.green
-                                                      .withOpacity(0.1)
-                                                  : _getStatusColor(attendance.status)
-                                                              .toLowerCase() ==
-                                                          'orange'
-                                                      ? Colors.orange
-                                                          .withOpacity(0.1)
-                                                      : _getStatusColor(attendance.status)
-                                                                  .toLowerCase() ==
-                                                              'blue'
-                                                          ? Colors.blue
-                                                              .withOpacity(0.1)
-                                                          : _getStatusColor(attendance.status)
-                                                                      .toLowerCase() ==
-                                                                  'red'
-                                                              ? Colors.red
-                                                                  .withOpacity(
-                                                                      0.1)
-                                                              : Colors.grey
-                                                                  .withOpacity(0.1),
-                                              borderRadius:
-                                                  BorderRadius.circular(4),
-                                            ),
-                                            child: Text(
-                                              attendance.status,
-                                              style: TextStyle(
-                                                color: _getStatusColor(
-                                                                attendance
-                                                                    .status)
-                                                            .toLowerCase() ==
-                                                        'green'
-                                                    ? Colors.green
-                                                    : _getStatusColor(attendance
-                                                                    .status)
-                                                                .toLowerCase() ==
-                                                            'orange'
-                                                        ? Colors.orange
-                                                        : _getStatusColor(attendance
-                                                                        .status)
-                                                                    .toLowerCase() ==
-                                                                'blue'
-                                                            ? Colors.blue
-                                                            : _getStatusColor(attendance
-                                                                            .status)
-                                                                        .toLowerCase() ==
-                                                                    'red'
-                                                                ? Colors.red
-                                                                : Colors.grey,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                          ),
-                                        ),
-                                        Expanded(
-                                            flex: 1,
-                                            child: Text(
-                                                attendance.activity ?? '-')),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                      ),
                     ],
                   ),
                 ),
@@ -467,6 +340,12 @@ class _AttendanceListScreenState extends ConsumerState<AttendanceListScreen> {
       ),
     );
   }
+}
+
+class _AttendanceTable extends StatelessWidget {
+  final List<Attendance> attendanceList;
+
+  const _AttendanceTable({required this.attendanceList});
 
   String _getStudentName(String nis) {
     // In real app, this would come from database
@@ -491,6 +370,129 @@ class _AttendanceListScreenState extends ConsumerState<AttendanceListScreen> {
     };
     return classes[nis] ?? 'Unknown';
   }
+
+  Color _getStatusColor(String status) {
+    switch (status) {
+      case 'Hadir':
+        return Colors.green;
+      case 'Terlambat':
+        return Colors.orange;
+      case 'Izin':
+        return Colors.blue;
+      case 'Sakit':
+        return Colors.purple;
+      case 'Alpha':
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Table Header
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          decoration: BoxDecoration(
+            color:
+                Theme.of(context).colorScheme.surfaceVariant.withOpacity(0.3),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Row(
+            children: [
+              Expanded(
+                  flex: 1,
+                  child: Text('NIS',
+                      style: TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(
+                  flex: 2,
+                  child: Text('Nama',
+                      style: TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(
+                  flex: 1,
+                  child: Text('Kelas',
+                      style: TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(
+                  flex: 2,
+                  child: Text('Waktu',
+                      style: TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(
+                  flex: 1,
+                  child: Text('Status',
+                      style: TextStyle(fontWeight: FontWeight.bold))),
+              Expanded(
+                  flex: 1,
+                  child: Text('Aktivitas',
+                      style: TextStyle(fontWeight: FontWeight.bold))),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Table Body
+        Expanded(
+          child: ListView.builder(
+            itemCount: attendanceList.length,
+            itemBuilder: (context, index) {
+              final attendance = attendanceList[index];
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: index.isEven
+                      ? Theme.of(context).colorScheme.surface
+                      : Theme.of(context)
+                          .colorScheme
+                          .surfaceVariant
+                          .withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(flex: 1, child: Text(attendance.nis)),
+                    Expanded(
+                        flex: 2, child: Text(_getStudentName(attendance.nis))),
+                    Expanded(
+                        flex: 1, child: Text(_getStudentClass(attendance.nis))),
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        '${attendance.createdAt.hour}:${attendance.createdAt.minute.toString().padLeft(2, '0')}',
+                      ),
+                    ),
+                    Expanded(
+                      flex: 1,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: _getStatusColor(attendance.status)
+                              .withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          attendance.status,
+                          style: TextStyle(
+                            color: _getStatusColor(attendance.status),
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                    Expanded(flex: 1, child: Text(attendance.activity ?? '-')),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _AttendanceStatCard extends StatelessWidget {
@@ -506,26 +508,28 @@ class _AttendanceStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Text(
-              title,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[600],
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-          ],
+    return Expanded(
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Text(
+                title,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                value,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            ],
+          ),
         ),
       ),
     );

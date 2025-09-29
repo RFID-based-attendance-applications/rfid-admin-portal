@@ -28,6 +28,8 @@ class AppConstants {
     return '$attendanceEndpoint/$formattedDate';
   }
 
+  static String get attendanceExportEndpoint => '$attendanceEndpoint/export';
+
   // Permissions
   static const String permissionEndpoint = '$baseUrl/permission';
 

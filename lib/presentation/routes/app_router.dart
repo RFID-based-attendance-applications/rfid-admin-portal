@@ -1,4 +1,3 @@
-// lib/presentation/routes/app_router.dart
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/auth/screens/login_screen.dart';
@@ -10,7 +9,6 @@ import '../features/splash/splash_screen.dart';
 import '../providers/app_provider.dart';
 import '../../core/constants/app_routes.dart';
 
-// lib/presentation/routes/app_router.dart
 class AppRouter {
   GoRouter get router => _router;
 

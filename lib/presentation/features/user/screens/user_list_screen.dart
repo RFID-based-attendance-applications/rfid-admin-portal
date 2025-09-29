@@ -1,8 +1,9 @@
-// lib/presentation/features/user/screens/user_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../widgets/shared/admin_layout.dart';
 import '../../../../data/models/user.dart';
+import '../providers/user_provider.dart';
+import '../../../widgets/modal/modal-user/user_form_modal.dart';
 
 class UserListScreen extends ConsumerStatefulWidget {
   const UserListScreen({super.key});
@@ -12,30 +13,46 @@ class UserListScreen extends ConsumerStatefulWidget {
 }
 
 class _UserListScreenState extends ConsumerState<UserListScreen> {
-  final List<User> _users = [
-    User(id: '1', username: 'admin', password: 'password'),
-    User(id: '2', username: 'operator', password: 'operator123'),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    // Load data saat screen pertama kali dibuka
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(userProvider.notifier).loadUsers();
+    });
+  }
 
   void _showUserFormModal([User? user]) {
     showDialog(
       context: context,
       builder: (context) => UserFormModal(
         user: user,
-        onSave: (newUser) {
-          if (user == null) {
-            // Add new user
-            setState(() {
-              _users.add(newUser);
-            });
-          } else {
-            // Update existing user
-            setState(() {
-              final index = _users.indexWhere((u) => u.id == user.id);
-              if (index != -1) {
-                _users[index] = newUser;
-              }
-            });
+        onSave: (newUser) async {
+          try {
+            if (user == null) {
+              await ref.read(userProvider.notifier).createUser(newUser);
+            } else {
+              await ref.read(userProvider.notifier).updateUser(newUser);
+            }
+
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      'User ${user == null ? 'ditambahkan' : 'diupdate'} berhasil'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error: ${e.toString()}'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
           }
         },
       ),
@@ -54,11 +71,28 @@ class _UserListScreenState extends ConsumerState<UserListScreen> {
             child: const Text('Batal'),
           ),
           TextButton(
-            onPressed: () {
-              setState(() {
-                _users.removeWhere((u) => u.id == user.id);
-              });
-              Navigator.of(context).pop();
+            onPressed: () async {
+              try {
+                await ref.read(userProvider.notifier).deleteUser(user.id);
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('User berhasil dihapus'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
             child: const Text('Hapus', style: TextStyle(color: Colors.red)),
           ),
@@ -69,6 +103,9 @@ class _UserListScreenState extends ConsumerState<UserListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final userState = ref.watch(userProvider);
+    final userNotifier = ref.read(userProvider.notifier);
+
     return AdminLayout(
       title: 'Manajemen User Admin',
       child: Padding(
@@ -83,13 +120,45 @@ class _UserListScreenState extends ConsumerState<UserListScreen> {
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 const Spacer(),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.add),
-                  label: const Text('Tambah User'),
-                  onPressed: () => _showUserFormModal(),
-                ),
+                if (userState.isLoading)
+                  const CircularProgressIndicator()
+                else
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.add),
+                    label: const Text('Tambah User'),
+                    onPressed: () => _showUserFormModal(),
+                  ),
               ],
             ),
+            const SizedBox(height: 24),
+
+            // Error Handling
+            if (userState.error != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  border: Border.all(color: Colors.red),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error, color: Colors.red),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(userState.error!)),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => userNotifier.clearError(),
+                    ),
+                  ],
+                ),
+              ),
+
+            // Statistics Card
+            _buildStatistics(userState.users.length),
+
             const SizedBox(height: 24),
 
             // Table
@@ -141,58 +210,90 @@ class _UserListScreenState extends ConsumerState<UserListScreen> {
 
                       // Table Body
                       Expanded(
-                        child: ListView.builder(
-                          itemCount: _users.length,
-                          itemBuilder: (context, index) {
-                            final user = _users[index];
-                            return Container(
-                              margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 12, horizontal: 16),
-                              decoration: BoxDecoration(
-                                color: index.isEven
-                                    ? Theme.of(context).colorScheme.surface
-                                    : Theme.of(context)
-                                        .colorScheme
-                                        .surfaceVariant
-                                        .withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    flex: 2,
-                                    child: Text(user.username),
-                                  ),
-                                  Expanded(
-                                    flex: 2,
-                                    child: Text('*' * user.password.length),
-                                  ),
-                                  Expanded(
-                                    flex: 1,
-                                    child: Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        IconButton(
-                                          icon:
-                                              const Icon(Icons.edit, size: 18),
-                                          onPressed: () =>
-                                              _showUserFormModal(user),
+                        child: userState.isLoading
+                            ? const Center(child: CircularProgressIndicator())
+                            : userState.users.isEmpty
+                                ? const Center(
+                                    child: Text('Tidak ada data user'))
+                                : ListView.builder(
+                                    itemCount: userState.users.length,
+                                    itemBuilder: (context, index) {
+                                      final user = userState.users[index];
+                                      return Container(
+                                        margin:
+                                            const EdgeInsets.only(bottom: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 12, horizontal: 16),
+                                        decoration: BoxDecoration(
+                                          color: index.isEven
+                                              ? Theme.of(context)
+                                                  .colorScheme
+                                                  .surface
+                                              : Theme.of(context)
+                                                  .colorScheme
+                                                  .surfaceVariant
+                                                  .withOpacity(0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
                                         ),
-                                        IconButton(
-                                          icon: const Icon(Icons.delete,
-                                              size: 18, color: Colors.red),
-                                          onPressed: () => _deleteUser(user),
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              flex: 2,
+                                              child: Row(
+                                                children: [
+                                                  const Icon(Icons.person,
+                                                      size: 16,
+                                                      color: Colors.grey),
+                                                  const SizedBox(width: 8),
+                                                  Text(user.username),
+                                                ],
+                                              ),
+                                            ),
+                                            Expanded(
+                                              flex: 2,
+                                              child: Row(
+                                                children: [
+                                                  const Icon(Icons.lock,
+                                                      size: 16,
+                                                      color: Colors.grey),
+                                                  const SizedBox(width: 8),
+                                                  Text('•' *
+                                                      user.password.length),
+                                                ],
+                                              ),
+                                            ),
+                                            Expanded(
+                                              flex: 1,
+                                              child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  IconButton(
+                                                    icon: const Icon(Icons.edit,
+                                                        size: 18),
+                                                    onPressed: () =>
+                                                        _showUserFormModal(
+                                                            user),
+                                                    tooltip: 'Edit User',
+                                                  ),
+                                                  IconButton(
+                                                    icon: const Icon(
+                                                        Icons.delete,
+                                                        size: 18,
+                                                        color: Colors.red),
+                                                    onPressed: () =>
+                                                        _deleteUser(user),
+                                                    tooltip: 'Hapus User',
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
+                                      );
+                                    },
                                   ),
-                                ],
-                              ),
-                            );
-                          },
-                        ),
                       ),
                     ],
                   ),
@@ -204,143 +305,39 @@ class _UserListScreenState extends ConsumerState<UserListScreen> {
       ),
     );
   }
-}
 
-class UserFormModal extends StatefulWidget {
-  final User? user;
-  final Function(User) onSave;
-
-  const UserFormModal({
-    super.key,
-    this.user,
-    required this.onSave,
-  });
-
-  @override
-  State<UserFormModal> createState() => _UserFormModalState();
-}
-
-class _UserFormModalState extends State<UserFormModal> {
-  final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.user != null) {
-      _usernameController.text = widget.user!.username;
-      _passwordController.text = widget.user!.password;
-    }
-  }
-
-  @override
-  void dispose() {
-    _usernameController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  void _save() {
-    if (_formKey.currentState!.validate()) {
-      final user = User(
-        id: widget.user?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-        username: _usernameController.text,
-        password: _passwordController.text,
-      );
-      widget.onSave(user);
-      Navigator.of(context).pop();
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      insetPadding: const EdgeInsets.all(20),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 500),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                widget.user == null ? 'Tambah User' : 'Edit User',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 24),
-              Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    TextFormField(
-                      controller: _usernameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Username',
-                        border: OutlineInputBorder(),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Username harus diisi';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _passwordController,
-                      obscureText: _obscurePassword,
-                      decoration: InputDecoration(
-                        labelText: 'Password',
-                        border: const OutlineInputBorder(),
-                        suffixIcon: IconButton(
-                          icon: Icon(_obscurePassword
-                              ? Icons.visibility
-                              : Icons.visibility_off),
-                          onPressed: () {
-                            setState(() {
-                              _obscurePassword = !_obscurePassword;
-                            });
-                          },
-                        ),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Password harus diisi';
-                        }
-                        if (value.length < 6) {
-                          return 'Password minimal 6 karakter';
-                        }
-                        return null;
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 32),
-              Row(
+  Widget _buildStatistics(int totalUsers) {
+    return Row(
+      children: [
+        Expanded(
+          child: Card(
+            color: Colors.blue[50],
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
                 children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Batal'),
-                    ),
+                  const Icon(Icons.people, size: 32, color: Colors.blue),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Total Users',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.blue[700],
+                        ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _save,
-                      child: const Text('Simpan'),
-                    ),
+                  const SizedBox(height: 4),
+                  Text(
+                    totalUsers.toString(),
+                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                          color: Colors.blue[700],
+                          fontWeight: FontWeight.bold,
+                        ),
                   ),
                 ],
               ),
-            ],
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 }

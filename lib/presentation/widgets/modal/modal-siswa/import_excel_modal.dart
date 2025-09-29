@@ -1,4 +1,3 @@
-// lib/presentation/features/siswa/widgets/import_excel_modal.dart
 import 'package:flutter/material.dart';
 import '../../../../data/models/siswa.dart';
 
@@ -73,7 +72,7 @@ class _ImportExcelModalState extends State<ImportExcelModal> {
     return Dialog(
       insetPadding: const EdgeInsets.all(20),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 800),
+        constraints: const BoxConstraints(maxWidth: 800, maxHeight: 600),
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
@@ -136,36 +135,49 @@ class _ImportExcelModalState extends State<ImportExcelModal> {
               ] else ...[
                 // Preview Section
                 Expanded(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 400),
-                    child: Column(
-                      children: [
-                        Text(
-                          'Preview Data (${_importedSiswa.length} siswa)',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 16),
-                        Expanded(
-                          child: ListView.builder(
-                            itemCount: _importedSiswa.length,
-                            itemBuilder: (context, index) {
-                              final siswa = _importedSiswa[index];
-                              return ListTile(
-                                leading: Text((index + 1).toString()),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Preview Data (${_importedSiswa.length} siswa)',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: _importedSiswa.length,
+                          itemBuilder: (context, index) {
+                            final siswa = _importedSiswa[index];
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              child: ListTile(
+                                leading: CircleAvatar(
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.primary,
+                                  child: Text(
+                                    (index + 1).toString(),
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
+                                ),
                                 title: Text(siswa.name),
-                                subtitle:
-                                    Text('NIS: ${siswa.nis} - ${siswa.kelas}'),
-                                trailing: Text(siswa.phone),
-                              );
-                            },
-                          ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('NIS: ${siswa.nis}'),
+                                    Text('Kelas: ${siswa.kelas}'),
+                                    Text('HP: ${siswa.phone}'),
+                                  ],
+                                ),
+                                trailing: Text(siswa.wali.split(' - ').first),
+                              ),
+                            );
+                          },
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
               ],
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               Row(
                 children: [
                   Expanded(

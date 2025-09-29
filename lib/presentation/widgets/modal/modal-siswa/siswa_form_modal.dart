@@ -1,4 +1,3 @@
-// lib/presentation/features/siswa/widgets/siswa_form_modal.dart
 import 'package:flutter/material.dart';
 import '../../../../data/models/siswa.dart';
 
@@ -85,27 +84,41 @@ class _SiswaFormModalState extends State<SiswaFormModal> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                widget.siswa == null ? 'Tambah Siswa' : 'Edit Siswa',
-                style: Theme.of(context).textTheme.headlineSmall,
+              Row(
+                children: [
+                  Icon(
+                    widget.siswa == null ? Icons.person_add : Icons.edit,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    widget.siswa == null ? 'Tambah Siswa' : 'Edit Siswa',
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
               Form(
                 key: _formKey,
                 child: Column(
                   children: [
+                    // NIS dan Nama
                     Row(
                       children: [
                         Expanded(
                           child: TextFormField(
                             controller: _nisController,
                             decoration: const InputDecoration(
-                              labelText: 'NIS',
+                              labelText: 'NIS *',
                               border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.numbers),
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'NIS harus diisi';
+                              }
+                              if (value.length < 3) {
+                                return 'NIS minimal 3 karakter';
                               }
                               return null;
                             },
@@ -116,12 +129,16 @@ class _SiswaFormModalState extends State<SiswaFormModal> {
                           child: TextFormField(
                             controller: _nameController,
                             decoration: const InputDecoration(
-                              labelText: 'Nama Lengkap',
+                              labelText: 'Nama Lengkap *',
                               border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.person),
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'Nama harus diisi';
+                              }
+                              if (value.length < 3) {
+                                return 'Nama minimal 3 karakter';
                               }
                               return null;
                             },
@@ -130,6 +147,8 @@ class _SiswaFormModalState extends State<SiswaFormModal> {
                       ],
                     ),
                     const SizedBox(height: 16),
+
+                    // Kelas dan No. HP
                     Row(
                       children: [
                         Expanded(
@@ -149,8 +168,9 @@ class _SiswaFormModalState extends State<SiswaFormModal> {
                               });
                             },
                             decoration: const InputDecoration(
-                              labelText: 'Kelas',
+                              labelText: 'Kelas *',
                               border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.school),
                             ),
                             validator: (value) {
                               if (value == null || value.isEmpty) {
@@ -165,13 +185,17 @@ class _SiswaFormModalState extends State<SiswaFormModal> {
                           child: TextFormField(
                             controller: _phoneController,
                             decoration: const InputDecoration(
-                              labelText: 'No. HP',
+                              labelText: 'No. HP *',
                               border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.phone),
                             ),
                             keyboardType: TextInputType.phone,
                             validator: (value) {
                               if (value == null || value.isEmpty) {
                                 return 'No. HP harus diisi';
+                              }
+                              if (value.length < 10) {
+                                return 'No. HP minimal 10 digit';
                               }
                               return null;
                             },
@@ -180,17 +204,23 @@ class _SiswaFormModalState extends State<SiswaFormModal> {
                       ],
                     ),
                     const SizedBox(height: 16),
+
+                    // Wali
                     TextFormField(
                       controller: _waliController,
                       decoration: const InputDecoration(
-                        labelText: 'Nama Wali & No. HP Wali',
+                        labelText: 'Nama Wali & No. HP Wali *',
                         border: OutlineInputBorder(),
+                        prefixIcon: Icon(Icons.family_restroom),
                         hintText: 'Contoh: Budi Santoso - 081234567890',
                       ),
                       maxLines: 2,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
                           return 'Data wali harus diisi';
+                        }
+                        if (!value.contains('-')) {
+                          return 'Format: Nama Wali - No. HP Wali';
                         }
                         return null;
                       },
@@ -204,6 +234,11 @@ class _SiswaFormModalState extends State<SiswaFormModal> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () => Navigator.of(context).pop(),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.grey,
+                        side: const BorderSide(color: Colors.grey),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
                       child: const Text('Batal'),
                     ),
                   ),
@@ -211,6 +246,11 @@ class _SiswaFormModalState extends State<SiswaFormModal> {
                   Expanded(
                     child: ElevatedButton(
                       onPressed: _save,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
                       child: const Text('Simpan'),
                     ),
                   ),

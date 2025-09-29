@@ -1,4 +1,3 @@
-// lib/data/models/siswa.dart
 class Siswa {
   final int id;
   final String nis;

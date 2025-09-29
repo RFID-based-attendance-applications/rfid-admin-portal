@@ -1,61 +1,126 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/services/api_service.dart';
 import '../../../../data/models/siswa.dart';
+import '../../../providers/app_provider.dart';
 
-final siswaProvider = StateNotifierProvider<SiswaProvider, List<Siswa>>((ref) {
-  return SiswaProvider();
+final siswaProvider = StateNotifierProvider<SiswaNotifier, SiswaState>((ref) {
+  final apiService = ref.watch(apiServiceProvider);
+  return SiswaNotifier(apiService);
 });
 
-class SiswaProvider extends StateNotifier<List<Siswa>> {
-  SiswaProvider()
-      : super([
-          Siswa(
-            id: 1,
-            nis: "1001",
-            name: "Ahmad Rizky",
-            kelas: "X IPA 1",
-            image: "",
-            phone: "081234567890",
-            wali: "Bapak Budi",
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          ),
-          Siswa(
-            id: 2,
-            nis: "1002",
-            name: "Siti Nurhaliza",
-            kelas: "X IPS 2",
-            image: "",
-            phone: "081298765432",
-            wali: "Ibu Dian",
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          ),
-          Siswa(
-            id: 3,
-            nis: "1003",
-            name: "Raka Pratama",
-            kelas: "XI MIPA 3",
-            image: "",
-            phone: "081345678901",
-            wali: "Bapak Agus",
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          ),
-        ]);
+class SiswaState {
+  final bool isLoading;
+  final List<Siswa> siswaList;
+  final String? error;
+  final bool isImporting;
 
-  void addSiswa(Siswa siswa) {
-    state = [...state, siswa];
+  const SiswaState({
+    this.isLoading = false,
+    this.siswaList = const [],
+    this.error,
+    this.isImporting = false,
+  });
+
+  SiswaState copyWith({
+    bool? isLoading,
+    List<Siswa>? siswaList,
+    String? error,
+    bool? isImporting,
+  }) {
+    return SiswaState(
+      isLoading: isLoading ?? this.isLoading,
+      siswaList: siswaList ?? this.siswaList,
+      error: error ?? this.error,
+      isImporting: isImporting ?? this.isImporting,
+    );
+  }
+}
+
+class SiswaNotifier extends StateNotifier<SiswaState> {
+  final ApiService _apiService;
+
+  SiswaNotifier(this._apiService) : super(const SiswaState());
+
+  Future<void> loadSiswa() async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      final response = await _apiService.getSiswa();
+      final siswaList =
+          (response as List).map((data) => Siswa.fromJson(data)).toList();
+
+      state = state.copyWith(
+        isLoading: false,
+        siswaList: siswaList,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: e.toString(),
+      );
+    }
   }
 
-  void updateSiswa(int index, Siswa updatedSiswa) {
-    state = [
-      ...state.take(index),
-      updatedSiswa,
-      ...state.skip(index + 1),
-    ];
+  Future<void> createSiswa(Siswa siswa) async {
+    try {
+      await _apiService.createSiswa(siswa.toJson());
+      await loadSiswa();
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      rethrow;
+    }
   }
 
-  void deleteSiswa(int index) {
-    state = [...state..removeAt(index)];
+  Future<void> updateSiswa(Siswa siswa) async {
+    try {
+      await _apiService.updateSiswa(siswa.id.toString(), siswa.toJson());
+      await loadSiswa();
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      rethrow;
+    }
+  }
+
+  Future<void> deleteSiswa(String id) async {
+    try {
+      await _apiService.deleteSiswa(id);
+      await loadSiswa();
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      rethrow;
+    }
+  }
+
+  Future<void> importSiswa(List<int> fileBytes, String filename) async {
+    state = state.copyWith(isImporting: true, error: null);
+
+    try {
+      await _apiService.importSiswa(fileBytes, filename);
+      await loadSiswa();
+      state = state.copyWith(isImporting: false);
+    } catch (e) {
+      state = state.copyWith(
+        isImporting: false,
+        error: e.toString(),
+      );
+      rethrow;
+    }
+  }
+
+  Future<void> registerRFID(String siswaId, String rfidTag) async {
+    try {
+      await _apiService.registerRFID(siswaId, rfidTag);
+      await loadSiswa();
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      rethrow;
+    }
+  }
+
+  // Clear error
+  void clearError() {
+    if (state.error != null) {
+      state = state.copyWith(error: null);
+    }
   }
 }

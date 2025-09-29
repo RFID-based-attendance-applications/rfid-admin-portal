@@ -1,23 +1,28 @@
-// lib/main.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'core/constants/app_constants.dart';
 import 'presentation/theme/app_theme.dart';
 import 'presentation/providers/app_provider.dart';
 import 'presentation/routes/app_router.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final sharedPreferences = await SharedPreferences.getInstance();
+
   runApp(
     ProviderScope(
-      child: MyApp(),
+      overrides: [
+        sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+      ],
+      child: const MyApp(),
     ),
   );
 }
 
 class MyApp extends ConsumerWidget {
-  final AppRouter _appRouter = AppRouter();
-
-  MyApp({super.key});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -28,7 +33,7 @@ class MyApp extends ConsumerWidget {
       theme: isLightTheme ? AppTheme.lightTheme : AppTheme.darkTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: isLightTheme ? ThemeMode.light : ThemeMode.dark,
-      routerConfig: _appRouter.router,
+      routerConfig: AppRouter().router, // Instantiate AppRouter
       debugShowCheckedModeBanner: false,
     );
   }

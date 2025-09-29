@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../providers/app_provider.dart';
+import '../providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -18,6 +18,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _obscurePassword = true;
 
   @override
+  void initState() {
+    super.initState();
+    // Clear any existing errors when screen loads
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(authProvider.notifier).clearError();
+    });
+  }
+
+  @override
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
@@ -26,16 +35,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
-      await ref.read(authProvider.notifier).login(
-            _usernameController.text,
-            _passwordController.text,
-          );
+      try {
+        await ref.read(authProvider.notifier).login(
+              _usernameController.text.trim(),
+              _passwordController.text,
+            );
 
-      final authState = ref.read(authProvider);
-      if (authState.isAuthenticated) {
-        context.go('/dashboard');
+        final authState = ref.read(authProvider);
+        if (authState.isAuthenticated && context.mounted) {
+          context.go('/dashboard');
+        }
+      } catch (e) {
+        // Error already handled in provider, just show snackbar for additional feedback
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Login gagal: ${e.toString()}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     }
+  }
+
+  void _clearError() {
+    ref.read(authProvider.notifier).clearError();
   }
 
   @override
@@ -122,6 +148,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 labelText: 'Username',
                                 prefixIcon: Icon(Icons.person),
                                 border: OutlineInputBorder(),
+                                filled: true,
+                                fillColor: Colors.white,
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
@@ -129,6 +157,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 }
                                 return null;
                               },
+                              onChanged: (_) => _clearError(),
                             ),
                             const SizedBox(height: 20),
                             TextFormField(
@@ -150,6 +179,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   },
                                 ),
                                 border: const OutlineInputBorder(),
+                                filled: true,
+                                fillColor: Colors.white,
                               ),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
@@ -160,8 +191,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 }
                                 return null;
                               },
+                              onChanged: (_) => _clearError(),
                             ),
                             const SizedBox(height: 32),
+
+                            // Error Display dengan close button
                             if (authState.error != null) ...[
                               Container(
                                 width: double.infinity,
@@ -171,18 +205,44 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   border: Border.all(color: Colors.red),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: Text(
-                                  authState.error!,
-                                  style: const TextStyle(color: Colors.red),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.error_outline,
+                                        color: Colors.red, size: 20),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        authState.error!,
+                                        style:
+                                            const TextStyle(color: Colors.red),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.close, size: 16),
+                                      onPressed: _clearError,
+                                      padding: EdgeInsets.zero,
+                                      constraints: const BoxConstraints(),
+                                    ),
+                                  ],
                                 ),
                               ),
                               const SizedBox(height: 16),
                             ],
+
+                            // Login Button
                             SizedBox(
                               width: double.infinity,
                               height: 50,
                               child: ElevatedButton(
                                 onPressed: authState.isLoading ? null : _login,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.primary,
+                                  foregroundColor: Colors.white,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                ),
                                 child: authState.isLoading
                                     ? const SizedBox(
                                         height: 20,
@@ -196,9 +256,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       )
                                     : const Text(
                                         'Masuk',
-                                        style: TextStyle(fontSize: 16),
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                               ),
+                            ),
+
+                            // Forgot Password Link
+                            const SizedBox(height: 16),
+                            TextButton(
+                              onPressed: () {
+                                // Navigate to forgot password screen
+                              },
+                              child: const Text('Lupa Password?'),
                             ),
                           ],
                         ),

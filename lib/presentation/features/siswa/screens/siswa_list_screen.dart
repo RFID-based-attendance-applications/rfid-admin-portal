@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../widgets/shared/admin_layout.dart';
 import '../../../../data/models/siswa.dart';
+import '../providers/siswa_provider.dart';
 import '../../../widgets/modal/modal-siswa/siswa_form_modal.dart';
 import '../../../widgets/modal/modal-siswa/import_excel_modal.dart';
 import '../../../widgets/modal/modal-siswa/rfid_modal.dart';
@@ -15,47 +16,31 @@ class SiswaListScreen extends ConsumerStatefulWidget {
 }
 
 class _SiswaListScreenState extends ConsumerState<SiswaListScreen> {
-  final List<Siswa> _siswaList = [
-    Siswa(
-      id: 1,
-      nis: '2024001',
-      name: 'Ahmad Rizki',
-      kelas: 'X IPA 1',
-      image: '',
-      phone: '081234567890',
-      wali: 'Budi Santoso - 081234567891',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    ),
-    Siswa(
-      id: 2,
-      nis: '2024002',
-      name: 'Siti Nurhaliza',
-      kelas: 'X IPA 1',
-      image: '',
-      phone: '081234567892',
-      wali: 'Ahmad Yani - 081234567893',
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    ),
-    // Add more sample data...
-  ];
-
   String _searchQuery = '';
   String _selectedClass = 'Semua Kelas';
 
-  List<String> get _classes => [
-        'Semua Kelas',
-        'X IPA 1',
-        'X IPA 2',
-        'XI IPA 1',
-        'XI IPA 2',
-        'XII IPA 1',
-        'XII IPA 2',
-      ];
+  final List<String> _classes = [
+    'Semua Kelas',
+    'X IPA 1',
+    'X IPA 2',
+    'XI IPA 1',
+    'XI IPA 2',
+    'XII IPA 1',
+    'XII IPA 2',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    // Load data saat screen pertama kali dibuka
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(siswaProvider.notifier).loadSiswa();
+    });
+  }
 
   List<Siswa> get _filteredSiswa {
-    return _siswaList.where((siswa) {
+    final siswaState = ref.watch(siswaProvider);
+    return siswaState.siswaList.where((siswa) {
       final matchesSearch =
           siswa.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
               siswa.nis.contains(_searchQuery);
@@ -65,25 +50,48 @@ class _SiswaListScreenState extends ConsumerState<SiswaListScreen> {
     }).toList();
   }
 
+  Map<String, int> get _classStatistics {
+    final siswaState = ref.watch(siswaProvider);
+    final statistics = <String, int>{};
+
+    for (final siswa in siswaState.siswaList) {
+      statistics[siswa.kelas] = (statistics[siswa.kelas] ?? 0) + 1;
+    }
+
+    return statistics;
+  }
+
   void _showSiswaFormModal([Siswa? siswa]) {
     showDialog(
       context: context,
       builder: (context) => SiswaFormModal(
         siswa: siswa,
-        onSave: (newSiswa) {
-          if (siswa == null) {
-            // Add new siswa
-            setState(() {
-              _siswaList.add(newSiswa);
-            });
-          } else {
-            // Update existing siswa
-            setState(() {
-              final index = _siswaList.indexWhere((s) => s.id == siswa.id);
-              if (index != -1) {
-                _siswaList[index] = newSiswa;
-              }
-            });
+        onSave: (newSiswa) async {
+          try {
+            if (siswa == null) {
+              await ref.read(siswaProvider.notifier).createSiswa(newSiswa);
+            } else {
+              await ref.read(siswaProvider.notifier).updateSiswa(newSiswa);
+            }
+
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      'Siswa ${siswa == null ? 'ditambahkan' : 'diupdate'} berhasil'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error: ${e.toString()}'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
           }
         },
       ),
@@ -94,10 +102,31 @@ class _SiswaListScreenState extends ConsumerState<SiswaListScreen> {
     showDialog(
       context: context,
       builder: (context) => ImportExcelModal(
-        onImport: (importedSiswaList) {
-          setState(() {
-            _siswaList.addAll(importedSiswaList);
-          });
+        onImport: (importedSiswaList) async {
+          try {
+            // Simulate import process
+            for (final siswa in importedSiswaList) {
+              await ref.read(siswaProvider.notifier).createSiswa(siswa);
+            }
+
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Data siswa berhasil diimport'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error import: ${e.toString()}'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
         },
       ),
     );
@@ -106,7 +135,34 @@ class _SiswaListScreenState extends ConsumerState<SiswaListScreen> {
   void _showRFIDModal(Siswa siswa) {
     showDialog(
       context: context,
-      builder: (context) => RFIDModal(siswa: siswa),
+      builder: (context) => RFIDModal(
+        siswa: siswa,
+        onSave: (rfidTag) async {
+          try {
+            await ref
+                .read(siswaProvider.notifier)
+                .registerRFID(siswa.id.toString(), rfidTag);
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content:
+                      Text('RFID berhasil didaftarkan untuk ${siswa.name}'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+            }
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error: ${e.toString()}'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+        },
+      ),
     );
   }
 
@@ -123,11 +179,30 @@ class _SiswaListScreenState extends ConsumerState<SiswaListScreen> {
             child: const Text('Batal'),
           ),
           TextButton(
-            onPressed: () {
-              setState(() {
-                _siswaList.removeWhere((s) => s.id == siswa.id);
-              });
-              Navigator.of(context).pop();
+            onPressed: () async {
+              try {
+                await ref
+                    .read(siswaProvider.notifier)
+                    .deleteSiswa(siswa.id.toString());
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Siswa berhasil dihapus'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
             child: const Text('Hapus', style: TextStyle(color: Colors.red)),
           ),
@@ -138,6 +213,10 @@ class _SiswaListScreenState extends ConsumerState<SiswaListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final siswaState = ref.watch(siswaProvider);
+    final siswaNotifier = ref.read(siswaProvider.notifier);
+    final filteredSiswa = _filteredSiswa;
+
     return AdminLayout(
       title: 'Manajemen Data Siswa',
       child: Padding(
@@ -152,14 +231,15 @@ class _SiswaListScreenState extends ConsumerState<SiswaListScreen> {
                   style: Theme.of(context).textTheme.headlineMedium,
                 ),
                 const Spacer(),
-                // Import Excel Button
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.upload_file),
-                  label: const Text('Import Excel'),
-                  onPressed: _showImportExcelModal,
-                ),
+                if (siswaState.isImporting)
+                  const CircularProgressIndicator()
+                else
+                  OutlinedButton.icon(
+                    icon: const Icon(Icons.upload_file),
+                    label: const Text('Import Excel'),
+                    onPressed: _showImportExcelModal,
+                  ),
                 const SizedBox(width: 16),
-                // Add Siswa Button
                 ElevatedButton.icon(
                   icon: const Icon(Icons.add),
                   label: const Text('Tambah Siswa'),
@@ -168,6 +248,30 @@ class _SiswaListScreenState extends ConsumerState<SiswaListScreen> {
               ],
             ),
             const SizedBox(height: 24),
+
+            // Error Handling
+            if (siswaState.error != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.red[50],
+                  border: Border.all(color: Colors.red),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error, color: Colors.red),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text(siswaState.error!)),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => siswaNotifier.clearError(),
+                    ),
+                  ],
+                ),
+              ),
 
             // Filter Section
             Card(
@@ -220,27 +324,8 @@ class _SiswaListScreenState extends ConsumerState<SiswaListScreen> {
             const SizedBox(height: 24),
 
             // Statistics
-            const Row(
-              children: [
-                Expanded(
-                    child: _SiswaStatCard(
-                        title: 'Total Siswa',
-                        value: '250',
-                        color: Colors.blue)),
-                SizedBox(width: 16),
-                Expanded(
-                    child: _SiswaStatCard(
-                        title: 'X IPA', value: '80', color: Colors.green)),
-                SizedBox(width: 16),
-                Expanded(
-                    child: _SiswaStatCard(
-                        title: 'XI IPA', value: '85', color: Colors.orange)),
-                SizedBox(width: 16),
-                Expanded(
-                    child: _SiswaStatCard(
-                        title: 'XII IPA', value: '85', color: Colors.purple)),
-              ],
-            ),
+            _buildStatistics(),
+
             const SizedBox(height: 24),
 
             // Siswa List
@@ -305,74 +390,87 @@ class _SiswaListScreenState extends ConsumerState<SiswaListScreen> {
 
                       // Table Body
                       Expanded(
-                        child: _filteredSiswa.isEmpty
-                            ? const Center(child: Text('Tidak ada data siswa'))
-                            : ListView.builder(
-                                itemCount: _filteredSiswa.length,
-                                itemBuilder: (context, index) {
-                                  final siswa = _filteredSiswa[index];
-                                  return Container(
-                                    margin: const EdgeInsets.only(bottom: 8),
-                                    padding: const EdgeInsets.symmetric(
-                                        vertical: 12, horizontal: 16),
-                                    decoration: BoxDecoration(
-                                      color: index.isEven
-                                          ? Theme.of(context)
-                                              .colorScheme
-                                              .surface
-                                          : Theme.of(context)
-                                              .colorScheme
-                                              .surfaceVariant
-                                              .withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Expanded(
-                                            flex: 1, child: Text(siswa.nis)),
-                                        Expanded(
-                                            flex: 2, child: Text(siswa.name)),
-                                        Expanded(
-                                            flex: 1, child: Text(siswa.kelas)),
-                                        Expanded(
-                                            flex: 2, child: Text(siswa.phone)),
-                                        Expanded(
-                                            flex: 2, child: Text(siswa.wali)),
-                                        Expanded(
-                                          flex: 1,
-                                          child: IconButton(
-                                            icon: const Icon(Icons.credit_card,
-                                                size: 18),
-                                            onPressed: () =>
-                                                _showRFIDModal(siswa),
-                                            tooltip: 'Daftar RFID',
-                                          ),
+                        child: siswaState.isLoading
+                            ? const Center(child: CircularProgressIndicator())
+                            : filteredSiswa.isEmpty
+                                ? const Center(
+                                    child: Text('Tidak ada data siswa'))
+                                : ListView.builder(
+                                    itemCount: filteredSiswa.length,
+                                    itemBuilder: (context, index) {
+                                      final siswa = filteredSiswa[index];
+                                      return Container(
+                                        margin:
+                                            const EdgeInsets.only(bottom: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 12, horizontal: 16),
+                                        decoration: BoxDecoration(
+                                          color: index.isEven
+                                              ? Theme.of(context)
+                                                  .colorScheme
+                                                  .surface
+                                              : Theme.of(context)
+                                                  .colorScheme
+                                                  .surfaceVariant
+                                                  .withOpacity(0.1),
+                                          borderRadius:
+                                              BorderRadius.circular(8),
                                         ),
-                                        Expanded(
-                                          flex: 1,
-                                          child: Row(
-                                            children: [
-                                              IconButton(
-                                                icon: const Icon(Icons.edit,
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                                flex: 1,
+                                                child: Text(siswa.nis)),
+                                            Expanded(
+                                                flex: 2,
+                                                child: Text(siswa.name)),
+                                            Expanded(
+                                                flex: 1,
+                                                child: Text(siswa.kelas)),
+                                            Expanded(
+                                                flex: 2,
+                                                child: Text(siswa.phone)),
+                                            Expanded(
+                                                flex: 2,
+                                                child: Text(siswa.wali)),
+                                            Expanded(
+                                              flex: 1,
+                                              child: IconButton(
+                                                icon: const Icon(
+                                                    Icons.credit_card,
                                                     size: 18),
                                                 onPressed: () =>
-                                                    _showSiswaFormModal(siswa),
+                                                    _showRFIDModal(siswa),
+                                                tooltip: 'Daftar RFID',
                                               ),
-                                              IconButton(
-                                                icon: const Icon(Icons.delete,
-                                                    size: 18,
-                                                    color: Colors.red),
-                                                onPressed: () =>
-                                                    _deleteSiswa(siswa),
+                                            ),
+                                            Expanded(
+                                              flex: 1,
+                                              child: Row(
+                                                children: [
+                                                  IconButton(
+                                                    icon: const Icon(Icons.edit,
+                                                        size: 18),
+                                                    onPressed: () =>
+                                                        _showSiswaFormModal(
+                                                            siswa),
+                                                  ),
+                                                  IconButton(
+                                                    icon: const Icon(
+                                                        Icons.delete,
+                                                        size: 18,
+                                                        color: Colors.red),
+                                                    onPressed: () =>
+                                                        _deleteSiswa(siswa),
+                                                  ),
+                                                ],
                                               ),
-                                            ],
-                                          ),
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
+                                      );
+                                    },
+                                  ),
                       ),
                     ],
                   ),
@@ -382,6 +480,42 @@ class _SiswaListScreenState extends ConsumerState<SiswaListScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStatistics() {
+    final statistics = _classStatistics;
+    final totalSiswa = ref.watch(siswaProvider).siswaList.length;
+
+    return Row(
+      children: [
+        _SiswaStatCard(
+          title: 'Total Siswa',
+          value: totalSiswa.toString(),
+          color: Colors.blue,
+        ),
+        const SizedBox(width: 16),
+        _SiswaStatCard(
+          title: 'X IPA',
+          value: (statistics['X IPA 1'] ?? 0 + statistics['X IPA 2']! ?? 0)
+              .toString(),
+          color: Colors.green,
+        ),
+        const SizedBox(width: 16),
+        _SiswaStatCard(
+          title: 'XI IPA',
+          value: (statistics['XI IPA 1'] ?? 0 + statistics['XI IPA 2']! ?? 0)
+              .toString(),
+          color: Colors.orange,
+        ),
+        const SizedBox(width: 16),
+        _SiswaStatCard(
+          title: 'XII IPA',
+          value: (statistics['XII IPA 1'] ?? 0 + statistics['XII IPA 2']! ?? 0)
+              .toString(),
+          color: Colors.purple,
+        ),
+      ],
     );
   }
 }
@@ -399,26 +533,28 @@ class _SiswaStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Text(
-              title,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Colors.grey[600],
-                  ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                    color: color,
-                    fontWeight: FontWeight.bold,
-                  ),
-            ),
-          ],
+    return Expanded(
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              Text(
+                title,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: Colors.grey[600],
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                value,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            ],
+          ),
         ),
       ),
     );
