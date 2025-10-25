@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/services/api_service.dart';
-import '../../../providers/app_provider.dart'; // PASTIKAN: app_providers.dart
-import '../../auth/providers/auth_provider.dart'; // PASTIKAN: auth_provider.dart
+import '../../../core/services/api_service.dart';
+import '../../providers/app_provider.dart'; // PASTIKAN: app_providers.dart
+import 'auth_provider.dart'; // PASTIKAN: auth_provider.dart
 
 final dashboardProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final apiService = ref.watch(apiServiceProvider);

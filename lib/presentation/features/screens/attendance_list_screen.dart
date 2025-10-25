@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../widgets/shared/admin_layout.dart';
-import '../providers/attendance_provider.dart';
-import '../../../../data/models/attendance.dart';
+import '../../widgets/shared/admin_layout.dart';
+import '../provider/attendance_provider.dart';
+import '../../../data/models/attendance.dart';
 
 class AttendanceListScreen extends ConsumerStatefulWidget {
   const AttendanceListScreen({super.key});

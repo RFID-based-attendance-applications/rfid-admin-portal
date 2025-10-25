@@ -1,5 +1,6 @@
-// lib/presentation/widgets/modal/modal-siswa/rfid_modal.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Untuk RawKeyboardListener
 import '../../../../data/models/siswa.dart';
 
 class RFIDModal extends StatefulWidget {
@@ -20,22 +21,117 @@ class _RFIDModalState extends State<RFIDModal> {
   String _rfidStatus = 'Menunggu scan RFID...';
   bool _isScanning = false;
   String? _scannedRFID;
+  String _currentInput = ''; // Menyimpan input sementara
+  Timer?
+      _inputTimer; // Timer untuk reset input jika tidak ada input baru dalam waktu tertentu
 
-  void _startRFIDScan() {
+  @override
+  void initState() {
+    super.initState();
+    // Fokus ke dialog agar bisa terima keystroke
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusScope.of(context).requestFocus(FocusNode());
+    });
+  }
+
+  Future<void> _startRFIDScan() async {
+    if (_isScanning) return;
+
     setState(() {
       _isScanning = true;
-      _rfidStatus = 'Silakan tempelkan kartu RFID ke reader...';
+      _rfidStatus = 'Siapkan kartu RFID...';
+      _currentInput = '';
+      _scannedRFID = null;
     });
 
-    // Simulate RFID scanning process
-    Future.delayed(const Duration(seconds: 3), () {
-      setState(() {
-        _isScanning = false;
-        _scannedRFID =
-            'RFID_${widget.siswa.nis}_${DateTime.now().millisecondsSinceEpoch}';
-        _rfidStatus = 'RFID berhasil didaftarkan!';
-      });
+    // Reset timer jika ada
+    _inputTimer?.cancel();
+
+    // Mulai listen keystroke
+    RawKeyboard.instance.addListener(_handleKeyEvent);
+
+    setState(() {
+      _rfidStatus = 'Tunggu scan kartu...';
     });
+  }
+
+  void _handleKeyEvent(RawKeyEvent event) {
+    if (!_isScanning) return;
+
+    // Hanya tangkap karakter ASCII (digit)
+    if (event is RawKeyDownEvent) {
+      final logicalKey = event.logicalKey;
+      final physicalKey = event.physicalKey;
+
+      // Cek apakah key adalah angka (0-9)
+      if (logicalKey == LogicalKeyboardKey.digit0 ||
+          logicalKey == LogicalKeyboardKey.digit1 ||
+          logicalKey == LogicalKeyboardKey.digit2 ||
+          logicalKey == LogicalKeyboardKey.digit3 ||
+          logicalKey == LogicalKeyboardKey.digit4 ||
+          logicalKey == LogicalKeyboardKey.digit5 ||
+          logicalKey == LogicalKeyboardKey.digit6 ||
+          logicalKey == LogicalKeyboardKey.digit7 ||
+          logicalKey == LogicalKeyboardKey.digit8 ||
+          logicalKey == LogicalKeyboardKey.digit9) {
+        final digit = logicalKey.keyLabel;
+        _currentInput += digit;
+
+        print('💡 Input: $_currentInput');
+
+        // Jika sudah 10 digit, proses
+        if (_currentInput.length == 10) {
+          if (RegExp(r'^\d{10}$').hasMatch(_currentInput)) {
+            setState(() {
+              _scannedRFID = _currentInput;
+              _rfidStatus = 'Kartu RFID terdeteksi!';
+              _isScanning = false;
+            });
+
+            // Hentikan listener
+            RawKeyboard.instance.removeListener(_handleKeyEvent);
+
+            // Reset input
+            _currentInput = '';
+
+            // Jangan lupa stop timer jika ada
+            _inputTimer?.cancel();
+          }
+        } else if (_currentInput.length > 10) {
+          // Jika lebih dari 10, reset
+          _currentInput = '';
+        }
+
+        // Set timer untuk reset input jika tidak ada input baru dalam 1 detik
+        _inputTimer?.cancel();
+        _inputTimer = Timer(const Duration(seconds: 1), () {
+          if (_isScanning &&
+              _currentInput.isNotEmpty &&
+              _currentInput.length < 10) {
+            setState(() {
+              _rfidStatus = 'Data tidak lengkap. Scan ulang.';
+              _currentInput = '';
+            });
+          }
+        });
+      } else if (logicalKey == LogicalKeyboardKey.enter ||
+          logicalKey == LogicalKeyboardKey.tab ||
+          logicalKey == LogicalKeyboardKey.space) {
+        // Jika user tekan Enter/Tab/Space, reset input
+        _currentInput = '';
+      }
+    }
+  }
+
+  void _stopListening() {
+    RawKeyboard.instance.removeListener(_handleKeyEvent);
+    _inputTimer?.cancel();
+  }
+
+  @override
+  void dispose() {
+    _stopListening();
+    super.dispose();
   }
 
   void _saveRFID() {
@@ -65,8 +161,6 @@ class _RFIDModalState extends State<RFIDModal> {
               Text('NIS: ${widget.siswa.nis}'),
               Text('Kelas: ${widget.siswa.kelas}'),
               const SizedBox(height: 24),
-
-              // RFID Status
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
@@ -86,18 +180,17 @@ class _RFIDModalState extends State<RFIDModal> {
                   ),
                 ),
                 child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     if (_isScanning) ...[
-                      const Icon(Icons.bluetooth_searching,
+                      Icon(Icons.bluetooth_searching,
                           size: 48, color: Colors.blue),
                       const SizedBox(height: 16),
                     ] else if (_scannedRFID != null) ...[
-                      const Icon(Icons.check_circle,
-                          size: 48, color: Colors.green),
+                      Icon(Icons.check_circle, size: 48, color: Colors.green),
                       const SizedBox(height: 16),
                     ] else ...[
-                      const Icon(Icons.credit_card,
-                          size: 48, color: Colors.grey),
+                      Icon(Icons.credit_card, size: 48, color: Colors.grey),
                       const SizedBox(height: 16),
                     ],
                     Text(
@@ -123,12 +216,14 @@ class _RFIDModalState extends State<RFIDModal> {
                 ),
               ),
               const SizedBox(height: 24),
-
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => Navigator.of(context).pop(),
+                      onPressed: () {
+                        _stopListening();
+                        Navigator.of(context).pop();
+                      },
                       child: const Text('Batal'),
                     ),
                   ),
@@ -138,7 +233,7 @@ class _RFIDModalState extends State<RFIDModal> {
                       child: ElevatedButton(
                         onPressed: _isScanning ? null : _startRFIDScan,
                         child: _isScanning
-                            ? const SizedBox(
+                            ? SizedBox(
                                 height: 20,
                                 width: 20,
                                 child:

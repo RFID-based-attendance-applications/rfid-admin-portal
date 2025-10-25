@@ -1,12 +1,11 @@
+import 'package:admin_absensi_hasbi/presentation/features/screens/libur_list_screen.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../features/auth/screens/login_screen.dart';
-import '../features/dashboard/screens/dashboard_screen.dart';
-import '../features/attendance/screens/attendance_list_screen.dart';
-import '../features/siswa/screens/siswa_list_screen.dart';
-import '../features/user/screens/user_list_screen.dart';
-import '../features/splash/splash_screen.dart';
-import '../providers/app_provider.dart';
+import '../features/screens/login_screen.dart';
+import '../features/screens/dashboard_screen.dart';
+import '../features/screens/attendance_list_screen.dart';
+import '../features/screens/siswa_list_screen.dart';
+import '../features/screens/user_list_screen.dart';
+import '../features/screens/splash_screen.dart';
 import '../../core/constants/app_routes.dart';
 
 class AppRouter {
@@ -43,6 +42,11 @@ class AppRouter {
         path: AppRoutes.users,
         name: AppRoutes.namedUsers,
         builder: (context, state) => const UserListScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.libur,
+        name: AppRoutes.namedLibur,
+        builder: (context, state) => const LiburScreen(),
       ),
     ],
   );

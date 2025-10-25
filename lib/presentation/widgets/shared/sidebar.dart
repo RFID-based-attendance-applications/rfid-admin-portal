@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../features/auth/providers/auth_provider.dart';
+import '../../features/provider/auth_provider.dart';
 
 class Sidebar extends ConsumerWidget {
   final bool isCollapsed;
@@ -57,23 +57,31 @@ class Sidebar extends ConsumerWidget {
               _NavItem(
                 isCollapsed: isCollapsed,
                 icon: Icons.verified_user_outlined,
-                label: 'Kehadiran',
+                label: 'Manage Kehadiran',
                 isActive: currentRoute == '/attendance',
                 onTap: () => context.go('/attendance'),
               ),
               _NavItem(
                 isCollapsed: isCollapsed,
                 icon: Icons.people,
-                label: 'Data Siswa',
+                label: 'Manage Siswa',
                 isActive: currentRoute == '/siswa',
                 onTap: () => context.go('/siswa'),
               ),
               _NavItem(
                 isCollapsed: isCollapsed,
                 icon: Icons.admin_panel_settings,
-                label: 'Admin Users',
+                label: 'Manage Users',
                 isActive: currentRoute == '/users',
                 onTap: () => context.go('/users'),
+              ),
+              // Tambahkan item ini untuk Manage Libur
+              _NavItem(
+                isCollapsed: isCollapsed,
+                icon: Icons.event_available,
+                label: 'Manage Libur',
+                isActive: currentRoute == '/libur',
+                onTap: () => context.go('/libur'),
               ),
             ],
           ),

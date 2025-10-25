@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../widgets/shared/admin_layout.dart';
-import '../../../widgets/stats_card.dart';
+import '../../widgets/shared/admin_layout.dart';
+import '../../widgets/stats_card.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});

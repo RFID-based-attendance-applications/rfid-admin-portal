@@ -1,7 +1,7 @@
 class ApiException implements Exception {
-  final String message;
+  final dynamic message;
   final int? statusCode;
-  final String? errorData;
+  final dynamic errorData;
 
   ApiException({required this.message, this.statusCode, this.errorData});
 

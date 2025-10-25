@@ -13,12 +13,17 @@ class AppConstants {
 
   // Users Management
   static const String usersEndpoint = '$baseUrl/users';
-  static String userByIdEndpoint(String id) => '$usersEndpoint/$id';
+  static String userByIdEndpoint(int id) =>
+      '$usersEndpoint/$id'; // Hanya ubah ini
 
   // Siswa Management
   static const String siswaEndpoint = '$baseUrl/siswa';
   static const String importSiswaEndpoint = '$baseUrl/siswa/import';
-  static String siswaByIdEndpoint(String id) => '$siswaEndpoint/$id';
+  static String siswaByIdEndpoint(int id) => '$siswaEndpoint/$id';
+
+  // Libur Management
+  static const String liburEndpoint = '$baseUrl/libur';
+  static String liburByIdEndpoint(int id) => '$liburEndpoint/$id';
 
   // Attendance
   static const String attendanceEndpoint = '$baseUrl/attendance';

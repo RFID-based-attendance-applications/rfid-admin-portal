@@ -25,8 +25,14 @@ class _UserFormModalState extends State<UserFormModal> {
   void initState() {
     super.initState();
     if (widget.user != null) {
-      _usernameController.text = widget.user!.username;
-      _passwordController.text = widget.user!.password;
+      try {
+        _usernameController.text = widget.user!.username;
+        _passwordController.text = widget.user!.password;
+      } catch (e) {
+        print('💥 Error setting controller text: $e');
+        _usernameController.text = '';
+        _passwordController.text = '';
+      }
     }
   }
 
@@ -40,7 +46,11 @@ class _UserFormModalState extends State<UserFormModal> {
   void _save() {
     if (_formKey.currentState!.validate()) {
       final user = User(
-        id: widget.user?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        // Jika sedang mengedit, gunakan id asli (int)
+        // Jika sedang membuat baru, buat id unik sebagai int (meskipun ini mungkin tidak digunakan oleh API)
+        id: widget.user != null
+            ? widget.user!.id // Biarkan tipe aslinya (int)
+            : DateTime.now().millisecondsSinceEpoch, // Biarkan sebagai int
         username: _usernameController.text.trim(),
         password: _passwordController.text,
       );

@@ -1,12 +1,12 @@
 // lib/presentation/features/siswa/screens/siswa_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../widgets/shared/admin_layout.dart';
-import '../../../../data/models/siswa.dart';
-import '../providers/siswa_provider.dart';
-import '../../../widgets/modal/modal-siswa/siswa_form_modal.dart';
-import '../../../widgets/modal/modal-siswa/import_excel_modal.dart';
-import '../../../widgets/modal/modal-siswa/rfid_modal.dart';
+import '../../widgets/shared/admin_layout.dart';
+import '../../../data/models/siswa.dart';
+import '../provider/siswa_provider.dart';
+import '../../widgets/modal/modal-siswa/siswa_form_modal.dart';
+import '../../widgets/modal/modal-siswa/import_excel_modal.dart';
+import '../../widgets/modal/modal-siswa/rfid_modal.dart';
 
 class SiswaListScreen extends ConsumerStatefulWidget {
   const SiswaListScreen({super.key});
@@ -141,7 +141,7 @@ class _SiswaListScreenState extends ConsumerState<SiswaListScreen> {
           try {
             await ref
                 .read(siswaProvider.notifier)
-                .registerRFID(siswa.id.toString(), rfidTag);
+                .registerRFID(siswa.id, rfidTag);
             if (context.mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -181,9 +181,7 @@ class _SiswaListScreenState extends ConsumerState<SiswaListScreen> {
           TextButton(
             onPressed: () async {
               try {
-                await ref
-                    .read(siswaProvider.notifier)
-                    .deleteSiswa(siswa.id.toString());
+                await ref.read(siswaProvider.notifier).deleteSiswa(siswa.id);
                 if (context.mounted) {
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -347,6 +345,7 @@ class _SiswaListScreenState extends ConsumerState<SiswaListScreen> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Expanded(
                                 flex: 1,
@@ -435,19 +434,20 @@ class _SiswaListScreenState extends ConsumerState<SiswaListScreen> {
                                                 child: Text(siswa.wali)),
                                             Expanded(
                                               flex: 1,
-                                              child: IconButton(
-                                                icon: const Icon(
-                                                    Icons.credit_card,
-                                                    size: 18),
-                                                onPressed: () =>
-                                                    _showRFIDModal(siswa),
-                                                tooltip: 'Daftar RFID',
-                                              ),
+                                              child: Text(siswa.rfidTag ?? '-'),
                                             ),
                                             Expanded(
                                               flex: 1,
                                               child: Row(
                                                 children: [
+                                                  IconButton(
+                                                    icon: const Icon(
+                                                        Icons.credit_card,
+                                                        size: 18),
+                                                    onPressed: () =>
+                                                        _showRFIDModal(siswa),
+                                                    tooltip: 'Daftar RFID',
+                                                  ),
                                                   IconButton(
                                                     icon: const Icon(Icons.edit,
                                                         size: 18),
@@ -487,6 +487,22 @@ class _SiswaListScreenState extends ConsumerState<SiswaListScreen> {
     final statistics = _classStatistics;
     final totalSiswa = ref.watch(siswaProvider).siswaList.length;
 
+    // Menghitung jumlah siswa per tingkat kelas
+    int jumlahXIpa = 0;
+    int jumlahXIpa1 = statistics['X IPA 1'] ?? 0;
+    int jumlahXIpa2 = statistics['X IPA 2'] ?? 0;
+    jumlahXIpa = jumlahXIpa1 + jumlahXIpa2;
+
+    int jumlahXIIpa = 0;
+    int jumlahXIIpa1 = statistics['XI IPA 1'] ?? 0;
+    int jumlahXIIpa2 = statistics['XI IPA 2'] ?? 0;
+    jumlahXIIpa = jumlahXIIpa1 + jumlahXIIpa2;
+
+    int jumlahXIIIpa = 0;
+    int jumlahXIIIpa1 = statistics['XII IPA 1'] ?? 0;
+    int jumlahXIIIpa2 = statistics['XII IPA 2'] ?? 0;
+    jumlahXIIIpa = jumlahXIIIpa1 + jumlahXIIIpa2;
+
     return Row(
       children: [
         _SiswaStatCard(
@@ -495,26 +511,6 @@ class _SiswaListScreenState extends ConsumerState<SiswaListScreen> {
           color: Colors.blue,
         ),
         const SizedBox(width: 16),
-        _SiswaStatCard(
-          title: 'X IPA',
-          value: (statistics['X IPA 1'] ?? 0 + statistics['X IPA 2']! ?? 0)
-              .toString(),
-          color: Colors.green,
-        ),
-        const SizedBox(width: 16),
-        _SiswaStatCard(
-          title: 'XI IPA',
-          value: (statistics['XI IPA 1'] ?? 0 + statistics['XI IPA 2']! ?? 0)
-              .toString(),
-          color: Colors.orange,
-        ),
-        const SizedBox(width: 16),
-        _SiswaStatCard(
-          title: 'XII IPA',
-          value: (statistics['XII IPA 1'] ?? 0 + statistics['XII IPA 2']! ?? 0)
-              .toString(),
-          color: Colors.purple,
-        ),
       ],
     );
   }

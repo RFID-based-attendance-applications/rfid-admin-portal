@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/services/api_service.dart';
-import '../../../../data/models/attendance.dart';
-import '../../../providers/app_provider.dart';
-import '../../../../core/constants/app_constants.dart';
+import '../../../core/services/api_service.dart';
+import '../../../data/models/attendance.dart';
+import '../../providers/app_provider.dart';
+import '../../../core/constants/app_constants.dart';
 
 final attendanceProvider =
     StateNotifierProvider<AttendanceNotifier, AttendanceState>((ref) {

@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/services/api_service.dart';
-import '../../../../data/models/siswa.dart';
-import '../../../providers/app_provider.dart';
+import '../../../core/services/api_service.dart';
+import '../../../data/models/siswa.dart';
+import '../../providers/app_provider.dart';
 
 final siswaProvider = StateNotifierProvider<SiswaNotifier, SiswaState>((ref) {
   final apiService = ref.watch(apiServiceProvider);
@@ -63,8 +63,27 @@ class SiswaNotifier extends StateNotifier<SiswaState> {
 
   Future<void> createSiswa(Siswa siswa) async {
     try {
-      await _apiService.createSiswa(siswa.toJson());
-      await loadSiswa();
+      // Siapkan field teks (tanpa image, karena image akan dikirim sebagai file)
+      final fields = {
+        'nis': siswa.nis,
+        'name': siswa.name,
+        'kelas': siswa.kelas,
+        'phone': siswa.phone,
+        'wali': siswa.wali,
+        // 'image': siswa.image, // Jangan kirim image sebagai string disini
+      };
+
+      // Kirim menggunakan multipart jika ada file
+      if (siswa.imageFile != null) {
+        await _apiService.createSiswaMultipart(
+            fields: fields, imageFile: siswa.imageFile);
+      } else {
+        // Jika tidak ada file, kirim data saja (mungkin perlu endpoint tambahan atau backend handle tanpa file)
+        // Untuk sekarang, asumsikan backend bisa handle request multipart tanpa file image
+        await _apiService.createSiswaMultipart(fields: fields, imageFile: null);
+      }
+
+      await loadSiswa(); // Refresh data dari server
     } catch (e) {
       state = state.copyWith(error: e.toString());
       rethrow;
@@ -73,15 +92,34 @@ class SiswaNotifier extends StateNotifier<SiswaState> {
 
   Future<void> updateSiswa(Siswa siswa) async {
     try {
-      await _apiService.updateSiswa(siswa.id.toString(), siswa.toJson());
-      await loadSiswa();
+      // Siapkan field teks (tanpa image, karena image akan dikirim sebagai file)
+      final fields = {
+        'nis': siswa.nis,
+        'name': siswa.name,
+        'kelas': siswa.kelas,
+        'phone': siswa.phone,
+        'wali': siswa.wali,
+        // 'image': siswa.image, // Jangan kirim image sebagai string disini
+      };
+
+      // Kirim menggunakan multipart jika ada file
+      if (siswa.imageFile != null) {
+        await _apiService.updateSiswaMultipart(
+            id: siswa.id, fields: fields, imageFile: siswa.imageFile);
+      } else {
+        // Jika tidak ada file, kirim data saja
+        await _apiService.updateSiswaMultipart(
+            id: siswa.id, fields: fields, imageFile: null);
+      }
+
+      await loadSiswa(); // Refresh data dari server
     } catch (e) {
       state = state.copyWith(error: e.toString());
       rethrow;
     }
   }
 
-  Future<void> deleteSiswa(String id) async {
+  Future<void> deleteSiswa(int id) async {
     try {
       await _apiService.deleteSiswa(id);
       await loadSiswa();
@@ -107,7 +145,7 @@ class SiswaNotifier extends StateNotifier<SiswaState> {
     }
   }
 
-  Future<void> registerRFID(String siswaId, String rfidTag) async {
+  Future<void> registerRFID(int siswaId, String rfidTag) async {
     try {
       await _apiService.registerRFID(siswaId, rfidTag);
       await loadSiswa();

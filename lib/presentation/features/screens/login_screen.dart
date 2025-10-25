@@ -1,8 +1,7 @@
-// lib/presentation/features/auth/screens/login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/auth_provider.dart';
+import '../provider/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -20,10 +19,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    // Clear any existing errors when screen loads
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(authProvider.notifier).clearError();
-    });
   }
 
   @override
@@ -36,17 +31,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
       try {
+        // Simpan username untuk redirect
+        final username = _usernameController.text.trim();
+
+        // Login
         await ref.read(authProvider.notifier).login(
-              _usernameController.text.trim(),
+              username,
               _passwordController.text,
             );
 
-        final authState = ref.read(authProvider);
-        if (authState.isAuthenticated && context.mounted) {
-          context.go('/dashboard');
+        // Gunakan Future.delayed untuk memastikan state terupdate
+        if (context.mounted) {
+          await Future.delayed(const Duration(milliseconds: 100));
+          final authState = ref.watch(
+              authProvider); // 👈 Gunakan ref.watch di dalam build context
+          if (authState.isAuthenticated) {
+            context.go('/dashboard');
+          }
         }
       } catch (e) {
-        // Error already handled in provider, just show snackbar for additional feedback
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -71,7 +74,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       body: Row(
         children: [
-          // Left Side - Illustration
           Expanded(
             flex: 1,
             child: Container(
@@ -107,8 +109,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
           ),
-
-          // Right Side - Login Form
           Expanded(
             flex: 1,
             child: Padding(
@@ -194,8 +194,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               onChanged: (_) => _clearError(),
                             ),
                             const SizedBox(height: 32),
-
-                            // Error Display dengan close button
                             if (authState.error != null) ...[
                               Container(
                                 width: double.infinity,
@@ -212,7 +210,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     const SizedBox(width: 8),
                                     Expanded(
                                       child: Text(
-                                        authState.error!,
+                                        authState.error is String
+                                            ? authState.error as String
+                                            : authState.error.toString(),
                                         style:
                                             const TextStyle(color: Colors.red),
                                       ),
@@ -228,8 +228,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                               const SizedBox(height: 16),
                             ],
-
-                            // Login Button
                             SizedBox(
                               width: double.infinity,
                               height: 50,
@@ -263,13 +261,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       ),
                               ),
                             ),
-
-                            // Forgot Password Link
                             const SizedBox(height: 16),
                             TextButton(
-                              onPressed: () {
-                                // Navigate to forgot password screen
-                              },
+                              onPressed: () {},
                               child: const Text('Lupa Password?'),
                             ),
                           ],

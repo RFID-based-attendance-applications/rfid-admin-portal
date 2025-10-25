@@ -1,11 +1,11 @@
+import 'package:admin_absensi_hasbi/core/exceptions/api_exceptions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-import '../../../../core/services/api_service.dart';
-import '../../../../core/constants/app_constants.dart';
-import '../../../providers/app_provider.dart'; // Import app_providers
+import '../../../core/services/api_service.dart';
+import '../../../core/constants/app_constants.dart';
+import '../../providers/app_provider.dart';
 
-// Auth Provider
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final apiService = ref.watch(apiServiceProvider);
   final sharedPreferences = ref.watch(sharedPreferencesProvider);
@@ -79,25 +79,51 @@ class AuthNotifier extends StateNotifier<AuthState> {
         AppConstants.userDataKey, json.encode(user));
   }
 
+  Future<void> setUserManually({
+    required String token,
+    required Map<String, dynamic> user,
+  }) async {
+    await _saveAuthData(token, user);
+    state = state.copyWith(
+      token: token,
+      user: user,
+      isLoading: false,
+      error: null,
+    );
+  }
+
   Future<void> login(String username, String password) async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
       final response = await _apiService.login(username, password);
 
-      await _saveAuthData(response['token'], response['user']);
+      final token = response['access_token'];
+      final user = response['user'];
+
+      if (token == null || user == null) {
+        throw ApiException(
+            message: 'Token or user data is missing', statusCode: 0);
+      }
+
+      await _saveAuthData(token, user);
 
       state = state.copyWith(
         isLoading: false,
-        token: response['token'],
-        user: response['user'],
+        token: token,
+        user: user,
         error: null,
       );
     } catch (e) {
       await _clearStoredAuth();
+
+      final errorMessage = e is ApiException
+          ? (e.message?.toString() ?? 'Login gagal')
+          : e.toString();
+
       state = state.copyWith(
         isLoading: false,
-        error: e.toString(),
+        error: errorMessage,
         token: null,
         user: null,
       );
@@ -116,7 +142,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  // Clear error manually
   void clearError() {
     if (state.error != null) {
       state = state.copyWith(error: null);
